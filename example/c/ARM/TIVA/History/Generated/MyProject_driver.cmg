@@ -1,0 +1,224 @@
+#include "MyProject_objects.h"
+#include "MyProject_resources.h"
+#include "built_in.h"
+
+
+// TFT module connections
+sbit TFT_BLED at GPIO_PORTA_DATA3_bit;
+sbit TFT_CS at GPIO_PORTH_DATA6_bit;
+char TFT_DataPort at GPIO_PORTJ_DATA;
+sbit TFT_RD at GPIO_PORTC_DATA5_bit;
+sbit TFT_RS at GPIO_PORTG_DATA7_bit;
+sbit TFT_RST at GPIO_PORTH_DATA5_bit;
+sbit TFT_WR at GPIO_PORTH_DATA4_bit;
+sbit TFT_BLED_Direction at GPIO_PORTA_DIR3_bit;
+sbit TFT_CS_Direction at GPIO_PORTH_DIR6_bit;
+char TFT_DataPort_Direction at GPIO_PORTJ_DIR;
+sbit TFT_RD_Direction at GPIO_PORTC_DIR5_bit;
+sbit TFT_RS_Direction at GPIO_PORTG_DIR7_bit;
+sbit TFT_RST_Direction at GPIO_PORTH_DIR5_bit;
+sbit TFT_WR_Direction at GPIO_PORTH_DIR4_bit;
+// End TFT module connections
+
+// Touch Panel module connections
+sbit DriveX_Left at GPIO_PORTB_DATA4_bit;
+sbit DriveX_Right at GPIO_PORTE_DATA0_bit;
+sbit DriveY_Up at GPIO_PORTE_DATA1_bit;
+sbit DriveY_Down at GPIO_PORTB_DATA5_bit;
+sbit DriveX_Left_Direction at GPIO_PORTB_DIR4_bit;
+sbit DriveX_Right_Direction at GPIO_PORTE_DIR0_bit;
+sbit DriveY_Up_Direction at GPIO_PORTE_DIR1_bit;
+sbit DriveY_Down_Direction at GPIO_PORTB_DIR5_bit;
+// End Touch Panel module connections
+
+// Global variables
+unsigned int Xcoord, Ycoord;
+const ADC_THRESHOLD = 750;
+char PenDown;
+typedef unsigned long TPointer;
+TPointer PressedObject;
+int PressedObjectType;
+unsigned int caption_length, caption_height;
+unsigned int display_width, display_height;
+
+int _object_count;
+unsigned short object_pressed;
+
+
+void Init_ADC() {
+  ADC_Set_Input_Channel(_ADC_CHANNEL_10 | _ADC_CHANNEL_11);
+  ADC0_Init_Advanced(_ADC_EXTERNAL_REF);
+}
+static void InitializeTouchPanel() {
+  Init_ADC();
+  TFT_Init(320, 240);
+
+  TP_TFT_Init(320, 240, 11, 10);                                  // Initialize touch panel
+  TP_TFT_Set_ADC_Threshold(ADC_THRESHOLD);                              // Set touch panel ADC threshold
+
+  PenDown = 0;
+  PressedObject = 0;
+  PressedObjectType = -1;
+}
+
+void Calibrate() {
+  TFT_Set_Pen(CL_WHITE, 3);
+  TFT_Set_Font(TFT_defaultFont, CL_WHITE, FO_HORIZONTAL);
+  TFT_Write_Text("Touch selected corners for calibration", 50, 80);
+  TFT_Line(315, 239, 319, 239);
+  TFT_Line(309, 229, 319, 239);
+  TFT_Line(319, 234, 319, 239);
+  TFT_Write_Text("first here", 210, 220);
+
+  TP_TFT_Calibrate_Min();                      // Calibration of TP minimum
+  Delay_ms(500);
+
+  TFT_Set_Pen(CL_BLACK, 3);
+  TFT_Set_Font(TFT_defaultFont, CL_BLACK, FO_HORIZONTAL);
+  TFT_Line(315, 239, 319, 239);
+  TFT_Line(309, 229, 319, 239);
+  TFT_Line(319, 234, 319, 239);
+  TFT_Write_Text("first here", 210, 220);
+
+  TFT_Set_Pen(CL_WHITE, 3);
+  TFT_Set_Font(TFT_defaultFont, CL_WHITE, FO_HORIZONTAL);
+  TFT_Write_Text("now here ", 20, 5);
+  TFT_Line(0, 0, 5, 0);
+  TFT_Line(0, 0, 0, 5);
+  TFT_Line(0, 0, 10, 10);
+
+  TP_TFT_Calibrate_Max();                       // Calibration of TP maximum
+  Delay_ms(500);
+}
+
+
+/////////////////////////
+  TScreen*  CurrentScreen;
+
+  TScreen                Screen1;
+
+
+
+static void InitializeObjects() {
+  Screen1.Color                     = 0x5AEB;
+  Screen1.Width                     = 320;
+  Screen1.Height                    = 240;
+  Screen1.ObjectsCount              = 0;
+
+}
+
+static char IsInsideObject (unsigned int X, unsigned int Y, unsigned int Left, unsigned int Top, unsigned int Width, unsigned int Height) { // static
+  if ( (Left<= X) && (Left+ Width - 1 >= X) &&
+       (Top <= Y)  && (Top + Height - 1 >= Y) )
+    return 1;
+  else
+    return 0;
+}
+
+
+
+
+void DrawScreen(TScreen *aScreen) {
+ unsigned int order;
+  char save_bled, save_bled_direction;
+
+  object_pressed = 0;
+  order = 0;
+  CurrentScreen = aScreen;
+
+  if ((display_width != CurrentScreen->Width) || (display_height != CurrentScreen->Height)) {
+    save_bled = TFT_BLED;
+    save_bled_direction = TFT_BLED_Direction;
+    TFT_BLED_Direction = 1;
+    TFT_BLED           = 0;
+    TFT_Init(CurrentScreen->Width, CurrentScreen->Height);
+    TP_TFT_Init(CurrentScreen->Width, CurrentScreen->Height, 11, 10);                                  // Initialize touch panel
+    TP_TFT_Set_ADC_Threshold(ADC_THRESHOLD);                              // Set touch panel ADC threshold
+    TFT_Fill_Screen(CurrentScreen->Color);
+    display_width = CurrentScreen->Width;
+    display_height = CurrentScreen->Height;
+    TFT_BLED           = save_bled;
+    TFT_BLED_Direction = save_bled_direction;
+  }
+  else
+    TFT_Fill_Screen(CurrentScreen->Color);
+
+
+  while (order < CurrentScreen->ObjectsCount) {
+  }
+}
+
+void Get_Object(unsigned int X, unsigned int Y) {
+  _object_count = -1;
+}
+
+
+void Process_TP_Press(unsigned int X, unsigned int Y) {
+
+  Get_Object(X, Y);
+
+  if (_object_count != -1) {
+  }
+}
+
+void Process_TP_Up(unsigned int X, unsigned int Y) {
+
+
+  Get_Object(X, Y);
+
+
+  if (_object_count != -1) {
+  }
+  PressedObject = 0;
+  PressedObjectType = -1;
+}
+
+void Process_TP_Down(unsigned int X, unsigned int Y) {
+
+  object_pressed      = 0;
+
+  Get_Object(X, Y);
+
+  if (_object_count != -1) {
+  }
+}
+
+void Check_TP() {
+  if (TP_TFT_Press_Detect()) {
+    if (TP_TFT_Get_Coordinates(&Xcoord, &Ycoord) == 0) {
+    // After a PRESS is detected read X-Y and convert it to Display dimensions space
+      Process_TP_Press(Xcoord, Ycoord);
+      if (PenDown == 0) {
+        PenDown = 1;
+        Process_TP_Down(Xcoord, Ycoord);
+      }
+    }
+  }
+  else if (PenDown == 1) {
+    PenDown = 0;
+    Process_TP_Up(Xcoord, Ycoord);
+  }
+}
+
+void Init_MCU() {
+  GPIO_Config(&GPIO_PORTA_DATA_BITS, 0b00001000, _GPIO_DIR_OUTPUT, _GPIO_CFG_DIGITAL_ENABLE | _GPIO_CFG_DRIVE_8mA, 0);
+  TFT_BLED = 1;
+  TFT_Set_Default_Mode();
+  TP_TFT_Set_Default_Mode();
+}
+
+void Start_TP() {
+  Init_MCU();
+
+  InitializeTouchPanel();
+
+  Delay_ms(1000);
+  TFT_Fill_Screen(0);
+  Calibrate();
+  TFT_Fill_Screen(0);
+
+  InitializeObjects();
+  display_width = Screen1.Width;
+  display_height = Screen1.Height;
+  DrawScreen(&Screen1);
+}
